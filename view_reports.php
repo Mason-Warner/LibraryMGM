@@ -1,11 +1,20 @@
 <?php
 session_start();
 include 'db_connection.php';
+require_once 'logger.php'; // Include the logging function
 
 // Ensure the user is logged in as an admin
 if (isset($_SESSION['admin_id'])) {
     // Sanitize the admin ID (cast to integer)
     $admin_id = intval($_SESSION['admin_id']);
+    
+    // Log that the reports page was viewed
+    $logDetails = [
+        'admin_id'  => $admin_id,
+        'action'    => 'view_reports',
+        'timestamp' => date('Y-m-d H:i:s')
+    ];
+    logAction('view_reports', $logDetails);
 
     // Link back to admin dashboard
     echo "<p><a href='admin_dashboard.php'>Back to Admin Dashboard</a></p>";

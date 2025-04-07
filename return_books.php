@@ -11,6 +11,7 @@
 <?php
 session_start();
 include 'db_connection.php';
+require_once 'logger.php'; // Include the logging function
 
 // Ensure the user is logged in before proceeding
 if (isset($_SESSION['user_id'])) {
@@ -51,7 +52,6 @@ if (isset($_SESSION['user_id'])) {
         } else {
             echo "<p>You have no books to return.</p>";
         }
-
         $stmt->close();
     }
 
@@ -99,6 +99,15 @@ if (isset($_SESSION['user_id'])) {
             $updateBookStmt->close();
 
             echo "<p>Book returned successfully!</p>";
+
+            // Log the return action
+            $logDetails = [
+                'user_id'        => $userId,
+                'transaction_id' => $transactionId,
+                'book_id'        => $bookId,
+                'return_date'    => $returnDate
+            ];
+            logAction('return_book', $logDetails);
         } else {
             echo "<p>Error: Invalid transaction ID.</p>";
         }
@@ -107,7 +116,7 @@ if (isset($_SESSION['user_id'])) {
     echo "<p>You must be logged in to return books.</p>";
 }
 
-// Close the database connection
+// Close database connection
 $conn->close();
 ?>
 

@@ -1,6 +1,6 @@
 <?php
-// Include the database connection file
 include 'db_connection.php';
+require_once 'logger.php'; // Include the logging function
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     // Sanitize and validate form inputs
@@ -35,6 +35,22 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     
     // Execute the statement
     if ($stmt->execute()) {
+        // Prepare log details
+        $logDetails = [
+            'username'        => $username,
+            'full_name'       => $full_name,
+            'email'           => $email,
+            'contact_number'  => $contact_number,
+            'role'            => $role,
+            'registration_date' => date('Y-m-d H:i:s')
+        ];
+        // If an admin is already logged in (i.e. registering another admin), log that too.
+        if (isset($_SESSION['admin_id'])) {
+            $logDetails['registered_by_admin'] = $_SESSION['admin_id'];
+        }
+        // Log the registration action in MongoDB
+        logAction('admin_register', $logDetails);
+        
         // Registration successful; redirect to admin_login.html
         header("Location: admin_login.html");
         exit;

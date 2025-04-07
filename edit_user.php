@@ -2,6 +2,7 @@
 // Start the session and include the database connection
 session_start();
 include 'db_connection.php';
+require_once 'logger.php'; // Include the logging function
 
 // Ensure the user is logged in and is an admin
 if (!isset($_SESSION['admin_id'])) {
@@ -65,6 +66,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
     // Execute the update
     if ($stmt->execute()) {
+        // Log the edit action
+        $logDetails = [
+            'edited_user_id'     => $edit_user_id,
+            'new_username'       => $username,
+            'new_full_name'      => $full_name,
+            'new_email'          => $email,
+            'new_contact_number' => $contact_number,
+            'changed_by_admin_id'=> $_SESSION['admin_id']
+        ];
+        logAction('edit_user', $logDetails);
+
         // Redirect to the manage_users.php page after the update
         header("Location: manage_users.php");
         exit;  // Always call exit after a header redirect
@@ -118,19 +130,19 @@ $conn->close();
     <h2>Edit User Profile</h2>
 
     <form action="edit_user.php" method="POST">
-        <input type="hidden" name="user_id" value="<?php echo htmlspecialchars($user['user_id']); ?>">
+        <input type="hidden" name="user_id" value="<?php echo htmlspecialchars($user['user_id'], ENT_QUOTES, 'UTF-8'); ?>">
 
         <label for="username">Username:</label>
-        <input type="text" name="username" id="username" value="<?php echo htmlspecialchars($user['username']); ?>" required><br><br>
+        <input type="text" name="username" id="username" value="<?php echo htmlspecialchars($user['username'], ENT_QUOTES, 'UTF-8'); ?>" required><br><br>
 
         <label for="full_name">Full Name:</label>
-        <input type="text" name="full_name" id="full_name" value="<?php echo htmlspecialchars($user['full_name']); ?>" required><br><br>
+        <input type="text" name="full_name" id="full_name" value="<?php echo htmlspecialchars($user['full_name'], ENT_QUOTES, 'UTF-8'); ?>" required><br><br>
 
         <label for="email">Email:</label>
-        <input type="email" name="email" id="email" value="<?php echo htmlspecialchars($user['email']); ?>" required><br><br>
+        <input type="email" name="email" id="email" value="<?php echo htmlspecialchars($user['email'], ENT_QUOTES, 'UTF-8'); ?>" required><br><br>
 
         <label for="contact_number">Contact Number:</label>
-        <input type="text" name="contact_number" id="contact_number" value="<?php echo htmlspecialchars($user['contact_number']); ?>"><br><br>
+        <input type="text" name="contact_number" id="contact_number" value="<?php echo htmlspecialchars($user['contact_number'], ENT_QUOTES, 'UTF-8'); ?>"><br><br>
 
         <label for="password">New Password (Leave blank if not changing):</label>
         <input type="password" name="password" id="password"><br><br>

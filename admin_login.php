@@ -1,6 +1,7 @@
 <?php
 session_start();
 include 'db_connection.php';
+require_once 'logger.php'; // Include the logging function
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     // Sanitize user inputs
@@ -22,6 +23,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $stmt->fetch();
         if (password_verify($password, $hashed_password)) {
             $_SESSION['admin_id'] = $user_id;
+            
+            // Log the successful admin login action
+            $logDetails = [
+                'admin_id' => $user_id,
+                'username' => $username
+            ];
+            logAction('admin_login', $logDetails);
+            
             // Redirect to the dashboard after successful login
             header("Location: admin_dashboard.php");
             exit();

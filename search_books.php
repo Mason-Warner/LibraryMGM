@@ -101,10 +101,23 @@
         // Check if the form was submitted and sanitize the input
         if ($_SERVER['REQUEST_METHOD'] == 'GET' && isset($_GET['query'])) {
             include 'db_connection.php';
+            require_once 'logger.php'; // Include the logging function
 
             // Sanitize the search query
             $searchTerm = trim(filter_input(INPUT_GET, 'query', FILTER_SANITIZE_STRING));
-
+            
+            // Build log details for the search action.
+            $logDetails = ['search_term' => $searchTerm];
+            // Optionally capture the actor if a session is set:
+            if (isset($_SESSION['admin_id'])) {
+                $logDetails['admin_id'] = $_SESSION['admin_id'];
+            } elseif (isset($_SESSION['librarian_id'])) {
+                $logDetails['librarian_id'] = $_SESSION['librarian_id'];
+            } elseif (isset($_SESSION['user_id'])) {
+                $logDetails['user_id'] = $_SESSION['user_id'];
+            }
+            logAction('search_books', $logDetails);
+            
             // Prepare and execute the query using a prepared statement
             $sql = "SELECT * FROM Books WHERE title LIKE ? OR author LIKE ? OR genre LIKE ?";
             $stmt = $conn->prepare($sql);

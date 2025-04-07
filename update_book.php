@@ -68,6 +68,7 @@
 
     <?php
     include 'db_connection.php';
+    require_once 'logger.php'; // Include the logging function
 
     // Sanitize and validate the book ID from the GET parameter
     $id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
@@ -92,6 +93,28 @@
         $stmt->bind_param("sssi", $title, $author, $genre, $id);
 
         if ($stmt->execute()) {
+            // Prepare log details for the update action
+            $logDetails = [
+                'book_id' => $id,
+                'new_title' => $title,
+                'new_author' => $author,
+                'new_genre' => $genre,
+                'update_date' => date('Y-m-d H:i:s')
+            ];
+            // Capture the actor from session if available (admin, librarian, or user)
+            if (isset($_SESSION['admin_id'])) {
+                $logDetails['actor'] = 'admin';
+                $logDetails['actor_id'] = $_SESSION['admin_id'];
+            } elseif (isset($_SESSION['librarian_id'])) {
+                $logDetails['actor'] = 'librarian';
+                $logDetails['actor_id'] = $_SESSION['librarian_id'];
+            } elseif (isset($_SESSION['user_id'])) {
+                $logDetails['actor'] = 'user';
+                $logDetails['actor_id'] = $_SESSION['user_id'];
+            }
+            // Log the update book action
+            logAction('update_book', $logDetails);
+
             echo "<p>Book updated successfully.</p>";
             header("Location: admin_dashboard.php");
             exit();

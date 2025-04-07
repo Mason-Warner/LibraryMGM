@@ -2,6 +2,7 @@
 // Start the session and include the database connection
 session_start();
 include 'db_connection.php';
+require_once 'logger.php'; // Include the logging function
 
 // Ensure the user is logged in and is an admin
 if (!isset($_SESSION['admin_id'])) {
@@ -68,6 +69,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Execute the update
     if ($stmt->execute()) {
         echo "User profile updated successfully.";
+        
+        // Build log details for the update action
+        $logDetails = [
+            'edited_user_id'     => $edit_user_id,
+            'new_username'       => $username,
+            'new_full_name'      => $full_name,
+            'new_email'          => $email,
+            'new_contact_number' => $contact_number,
+            'changed_by_admin'   => $admin_id,
+            'update_time'        => date('Y-m-d H:i:s')
+        ];
+        logAction('update_user', $logDetails);
+        
     } else {
         echo "Error updating user profile: " . $stmt->error;
     }

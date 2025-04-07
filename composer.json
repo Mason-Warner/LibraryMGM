@@ -1,0 +1,12 @@
+{
+    "name": "mason/library-mgm_2",
+    "type": "project",
+    "autoload": {
+        "psr-4": {
+            "Mason\\LibraryMgm2\\": "src/"
+        }
+    },
+    "require": {
+        "mongodb/mongodb": "^1.21"
+    }
+}

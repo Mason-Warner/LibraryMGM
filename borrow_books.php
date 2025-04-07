@@ -11,6 +11,7 @@
 <?php
 session_start();
 include 'db_connection.php';
+require_once 'logger.php'; // Include logging function
 
 // Ensure the user is logged in before proceeding
 if (isset($_SESSION['user_id'])) {
@@ -29,11 +30,10 @@ if (isset($_SESSION['user_id'])) {
         
         // Display available books in a dropdown with escaped output
         while ($row = $result->fetch_assoc()) {
-            $bookIdOption = htmlspecialchars($row['book_id']);
-            $titleOption = htmlspecialchars($row['title']);
+            $bookIdOption = htmlspecialchars($row['book_id'], ENT_QUOTES, 'UTF-8');
+            $titleOption = htmlspecialchars($row['title'], ENT_QUOTES, 'UTF-8');
             echo '<option value="' . $bookIdOption . '">' . $titleOption . '</option>';
         }
-
         echo '</select><br><br>';
         echo '<button type="submit">Borrow Book</button>';
         echo '</form>';
@@ -70,9 +70,18 @@ if (isset($_SESSION['user_id'])) {
             }
             $updateStmt->bind_param("i", $bookId);
             $updateStmt->execute();
+            $updateStmt->close();
             
             echo "<p>Book borrowed successfully!</p>";
-            $updateStmt->close();
+            
+            // Log the borrow action with details about the user and the book
+            $logDetails = [
+                'user_id'  => $userId,
+                'book_id'  => $bookId,
+                'due_date' => $dueDate
+            ];
+            logAction('borrow_book', $logDetails);
+            
         } else {
             echo "<p>Error: " . $stmt->error . "</p>";
         }

@@ -9,13 +9,14 @@
 <p>
 <?php
 include 'db_connection.php'; // Ensure you have a file for connecting to the database
+require_once 'logger.php';   // Include the logging function
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     // Sanitize and validate inputs
-    $username = trim(filter_input(INPUT_POST, 'username', FILTER_SANITIZE_STRING));
+    $username  = trim(filter_input(INPUT_POST, 'username', FILTER_SANITIZE_STRING));
     $rawPassword = trim($_POST['password']); // Password is processed as-is for hashing
-    $fullName = trim(filter_input(INPUT_POST, 'full_name', FILTER_SANITIZE_STRING));
-    $email = trim(filter_input(INPUT_POST, 'email', FILTER_SANITIZE_EMAIL));
+    $fullName  = trim(filter_input(INPUT_POST, 'full_name', FILTER_SANITIZE_STRING));
+    $email     = trim(filter_input(INPUT_POST, 'email', FILTER_SANITIZE_EMAIL));
     
     // Validate email format
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -42,6 +43,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
     // Execute the statement
     if ($stmt->execute()) {
+        // Log the registration action
+        $logDetails = [
+            'username'  => $username,
+            'full_name' => $fullName,
+            'email'     => $email,
+            'registration_date' => date('Y-m-d H:i:s')
+        ];
+        logAction('user_register', $logDetails);
+        
         // Registration successful, redirect to login page
         header("Location: login.html");
         exit(); // Stop further execution

@@ -2,6 +2,7 @@
 <?php
 session_start();
 include 'db_connection.php';
+require_once 'logger.php'; // Include the logging function
 
 if (isset($_SESSION['admin_id'])) {
     echo "<h1>Admin Dashboard</h1>";
@@ -73,9 +74,18 @@ if (isset($_SESSION['admin_id'])) {
 
         if ($stmt->execute()) {
             echo "<p>Notification sent successfully to User ID: $user_id.</p>";
+            
+            // Log the send notification action
+            $logDetails = [
+                'admin_id'       => $_SESSION['admin_id'],
+                'target_user_id' => $user_id,
+                'message'        => $message
+            ];
+            logAction('send_notification', $logDetails);
         } else {
             echo "<p>Error sending notification: " . $stmt->error . "</p>";
         }
+
         $stmt->close();
     }
 } else {

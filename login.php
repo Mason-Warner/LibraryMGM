@@ -1,6 +1,7 @@
 <?php
 session_start();
 include 'db_connection.php';
+require_once 'logger.php'; // Include the logging function
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     // Sanitize and validate input values
@@ -27,6 +28,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $stmt->fetch();
         if (password_verify($password, $hashed_password)) {
             $_SESSION['user_id'] = $user_id;
+            
+            // Log the successful user login action
+            $logDetails = [
+                'user_id'  => $user_id,
+                'username' => $username
+            ];
+            logAction('user_login', $logDetails);
             
             // Redirect to the dashboard after successful login
             header("Location: dashboard.html");

@@ -2,6 +2,7 @@
 // Start the session and include the database connection
 session_start();
 include 'db_connection.php';
+require_once 'logger.php'; // Include the logging function
 
 // Ensure the user is logged in and is an admin
 if (!isset($_SESSION['admin_id'])) {
@@ -61,6 +62,13 @@ try {
 
     // Commit the transaction
     $conn->commit();
+
+    // Log the deletion action
+    $logDetails = [
+        'deleted_user_id'     => $delete_user_id,
+        'deleted_by_admin_id' => $user_id
+    ];
+    logAction('delete_user', $logDetails);
 
     // Redirect back to manage_users.php after successful deletion
     header("Location: manage_users.php");

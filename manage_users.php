@@ -1,8 +1,17 @@
 <?php
 session_start();
 include 'db_connection.php';
+require_once 'logger.php'; // Include the logging function
 
 if (isset($_SESSION['admin_id'])) {
+    // Log that the admin viewed the manage users page
+    $logDetails = [
+        'admin_id' => $_SESSION['admin_id'],
+        'action'   => 'view_manage_users',
+        'timestamp'=> date('Y-m-d H:i:s')
+    ];
+    logAction('view_manage_users', $logDetails);
+
     echo "<h1>Manage Users</h1>";
 
     // Display all users

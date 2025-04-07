@@ -1,6 +1,7 @@
 <?php
 session_start();
 include 'db_connection.php';
+require_once 'logger.php'; // Include the logging function
 
 // Check if the user is logged in
 if (!isset($_SESSION['user_id'])) {
@@ -13,6 +14,15 @@ $userId = intval($_SESSION['user_id']);
 // Sanitize and validate the filter parameter (only allow 'unread' or default to 'all')
 $filter = filter_input(INPUT_GET, 'filter', FILTER_SANITIZE_STRING);
 $filter = ($filter === 'unread') ? 'unread' : 'all';
+
+// Log that the user viewed the notifications page
+$viewLogDetails = [
+    'user_id' => $userId,
+    'filter'  => $filter,
+    'action'  => 'view_notifications',
+    'timestamp' => date('Y-m-d H:i:s')
+];
+logAction('view_notifications', $viewLogDetails);
 
 // Handle status update using POST
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
@@ -34,6 +44,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     }
     $stmt->bind_param("sii", $new_status, $notification_id, $userId);
     if ($stmt->execute()) {
+        // Log the update action
+        $updateLogDetails = [
+            'user_id'         => $userId,
+            'notification_id' => $notification_id,
+            'new_status'      => $new_status,
+            'action'          => 'update_notification'
+        ];
+        logAction('update_notification', $updateLogDetails);
+        
         header("Location: notifications.php?filter=" . urlencode($filter)); // Retain filter on redirect
         exit();
     } else {
