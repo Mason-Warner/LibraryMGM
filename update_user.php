@@ -9,12 +9,15 @@ if (!isset($_SESSION['admin_id'])) {
     exit;
 }
 
-$user_id = $_SESSION['admin_id']; // Get the logged-in user's ID
+$admin_id = intval($_SESSION['admin_id']); // Cast to integer for safety
 
 // Check if the logged-in user is an admin
 $sql = "SELECT role FROM Admins WHERE admin_id = ?";
 $stmt = $conn->prepare($sql);
-$stmt->bind_param("i", $user_id);
+if (!$stmt) {
+    die("Error preparing statement: " . $conn->error);
+}
+$stmt->bind_param("i", $admin_id);
 $stmt->execute();
 $stmt->bind_result($role);
 $stmt->fetch();
@@ -26,25 +29,42 @@ if ($role !== 'admin') {
 }
 
 // If the form has been submitted (POST request)
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $edit_user_id = $_POST['user_id'];
-    $username = $_POST['username'];
-    $full_name = $_POST['full_name'];
-    $email = $_POST['email'];
-    $contact_number = $_POST['contact_number'];
-
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Sanitize and validate POST inputs
+    $edit_user_id = filter_input(INPUT_POST, 'user_id', FILTER_VALIDATE_INT);
+    if ($edit_user_id === false || $edit_user_id === null) {
+        echo "Invalid user ID.";
+        exit;
+    }
+    
+    $username = trim(filter_input(INPUT_POST, 'username', FILTER_SANITIZE_STRING));
+    $full_name = trim(filter_input(INPUT_POST, 'full_name', FILTER_SANITIZE_STRING));
+    $email = trim(filter_input(INPUT_POST, 'email', FILTER_SANITIZE_EMAIL));
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        echo "Invalid email format.";
+        exit;
+    }
+    $contact_number = trim(filter_input(INPUT_POST, 'contact_number', FILTER_SANITIZE_STRING));
+    
     // Check if a new password is provided
     if (!empty($_POST['password'])) {
-        $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
+        $raw_password = trim($_POST['password']);
+        $password = password_hash($raw_password, PASSWORD_DEFAULT);
         $update_sql = "UPDATE users SET username = ?, full_name = ?, email = ?, contact_number = ?, password = ? WHERE user_id = ?";
         $stmt = $conn->prepare($update_sql);
+        if (!$stmt) {
+            die("Error preparing statement: " . $conn->error);
+        }
         $stmt->bind_param("sssssi", $username, $full_name, $email, $contact_number, $password, $edit_user_id);
     } else {
         $update_sql = "UPDATE users SET username = ?, full_name = ?, email = ?, contact_number = ? WHERE user_id = ?";
         $stmt = $conn->prepare($update_sql);
+        if (!$stmt) {
+            die("Error preparing statement: " . $conn->error);
+        }
         $stmt->bind_param("ssssi", $username, $full_name, $email, $contact_number, $edit_user_id);
     }
-
+    
     // Execute the update
     if ($stmt->execute()) {
         echo "User profile updated successfully.";
@@ -56,13 +76,20 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
 // If the GET request is present, fetch the user details to be edited
 if (isset($_GET['id'])) {
-    $edit_user_id = $_GET['id'];
+    $edit_user_id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
+    if ($edit_user_id === false || $edit_user_id === null) {
+        echo "Invalid user selected to edit.";
+        exit;
+    }
     $sql = "SELECT * FROM users WHERE user_id = ?";
     $stmt = $conn->prepare($sql);
+    if (!$stmt) {
+        die("Error preparing statement: " . $conn->error);
+    }
     $stmt->bind_param("i", $edit_user_id);
     $stmt->execute();
     $result = $stmt->get_result();
-
+    
     if ($result->num_rows > 0) {
         // Fetch the user details
         $user = $result->fetch_assoc();
@@ -79,7 +106,6 @@ if (isset($_GET['id'])) {
 // Close the database connection
 $conn->close();
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -89,30 +115,27 @@ $conn->close();
 </head>
 <body>
     <h2>Edit User Profile</h2>
-
-    <form action="edit_user.php" method="POST">
-        <input type="hidden" name="user_id" value="<?php echo htmlspecialchars($user['user_id']); ?>">
-
+    <form action="update_user.php" method="POST">
+        <input type="hidden" name="user_id" value="<?php echo htmlspecialchars($user['user_id'], ENT_QUOTES, 'UTF-8'); ?>">
+        
         <label for="username">Username:</label>
-        <input type="text" name="username" id="username" value="<?php echo htmlspecialchars($user['username']); ?>" required><br><br>
-
+        <input type="text" name="username" id="username" value="<?php echo htmlspecialchars($user['username'], ENT_QUOTES, 'UTF-8'); ?>" required><br><br>
+        
         <label for="full_name">Full Name:</label>
-        <input type="text" name="full_name" id="full_name" value="<?php echo htmlspecialchars($user['full_name']); ?>" required><br><br>
-
+        <input type="text" name="full_name" id="full_name" value="<?php echo htmlspecialchars($user['full_name'], ENT_QUOTES, 'UTF-8'); ?>" required><br><br>
+        
         <label for="email">Email:</label>
-        <input type="email" name="email" id="email" value="<?php echo htmlspecialchars($user['email']); ?>" required><br><br>
-
+        <input type="email" name="email" id="email" value="<?php echo htmlspecialchars($user['email'], ENT_QUOTES, 'UTF-8'); ?>" required><br><br>
+        
         <label for="contact_number">Contact Number:</label>
-        <input type="text" name="contact_number" id="contact_number" value="<?php echo htmlspecialchars($user['contact_number']); ?>"><br><br>
-
+        <input type="text" name="contact_number" id="contact_number" value="<?php echo htmlspecialchars($user['contact_number'], ENT_QUOTES, 'UTF-8'); ?>"><br><br>
+        
         <label for="password">New Password (Leave blank if not changing):</label>
         <input type="password" name="password" id="password"><br><br>
-
+        
         <button type="submit">Update Profile</button>
     </form>
-
     <br>
     <p><a href="manage_users.php">Back to User Management</a></p>
 </body>
 </html>
-

@@ -9,11 +9,14 @@ if (!isset($_SESSION['admin_id'])) {
     exit;
 }
 
-$user_id = $_SESSION['admin_id']; // Get the logged-in user's ID
+$user_id = intval($_SESSION['admin_id']); // Cast to integer
 
 // Check if the logged-in user is an admin
 $sql = "SELECT role FROM Admins WHERE admin_id = ?";
 $stmt = $conn->prepare($sql);
+if (!$stmt) {
+    die("Error preparing statement: " . $conn->error);
+}
 $stmt->bind_param("i", $user_id);
 $stmt->execute();
 $stmt->bind_result($role);
@@ -27,21 +30,36 @@ if ($role !== 'admin') {
 
 // If the form has been submitted (POST request)
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $edit_user_id = $_POST['user_id'];
-    $username = $_POST['username'];
-    $full_name = $_POST['full_name'];
-    $email = $_POST['email'];
-    $contact_number = $_POST['contact_number'];
+    // Sanitize and validate POST inputs
+    $edit_user_id = filter_input(INPUT_POST, 'user_id', FILTER_VALIDATE_INT);
+    if ($edit_user_id === false) {
+        echo "Invalid user ID.";
+        exit;
+    }
+    $username = trim(filter_input(INPUT_POST, 'username', FILTER_SANITIZE_STRING));
+    $full_name = trim(filter_input(INPUT_POST, 'full_name', FILTER_SANITIZE_STRING));
+    $email = trim(filter_input(INPUT_POST, 'email', FILTER_SANITIZE_EMAIL));
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        echo "Invalid email format.";
+        exit;
+    }
+    $contact_number = trim(filter_input(INPUT_POST, 'contact_number', FILTER_SANITIZE_STRING));
 
     // Check if a new password is provided
     if (!empty($_POST['password'])) {
-        $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
+        $password = password_hash(trim($_POST['password']), PASSWORD_DEFAULT);
         $update_sql = "UPDATE users SET username = ?, full_name = ?, email = ?, contact_number = ?, password = ? WHERE user_id = ?";
         $stmt = $conn->prepare($update_sql);
+        if (!$stmt) {
+            die("Error preparing statement: " . $conn->error);
+        }
         $stmt->bind_param("sssssi", $username, $full_name, $email, $contact_number, $password, $edit_user_id);
     } else {
         $update_sql = "UPDATE users SET username = ?, full_name = ?, email = ?, contact_number = ? WHERE user_id = ?";
         $stmt = $conn->prepare($update_sql);
+        if (!$stmt) {
+            die("Error preparing statement: " . $conn->error);
+        }
         $stmt->bind_param("ssssi", $username, $full_name, $email, $contact_number, $edit_user_id);
     }
 
@@ -58,9 +76,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
 // If the GET request is present, fetch the user details to be edited
 if (isset($_GET['id'])) {
-    $edit_user_id = $_GET['id'];
+    $edit_user_id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
+    if ($edit_user_id === false) {
+        echo "Invalid user selected to edit.";
+        exit;
+    }
     $sql = "SELECT * FROM users WHERE user_id = ?";
     $stmt = $conn->prepare($sql);
+    if (!$stmt) {
+        die("Error preparing statement: " . $conn->error);
+    }
     $stmt->bind_param("i", $edit_user_id);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -117,4 +142,3 @@ $conn->close();
     <p><a href="admin_dashboard.php">Back to Admin Dashboard</a></p>
 </body>
 </html>
-

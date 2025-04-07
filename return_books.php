@@ -14,75 +14,89 @@ include 'db_connection.php';
 
 // Ensure the user is logged in before proceeding
 if (isset($_SESSION['user_id'])) {
-    $userId = $_SESSION['user_id'];
+    // Cast user ID to integer for safety
+    $userId = intval($_SESSION['user_id']);
 
-    // Fetch books the user has borrowed (those without a return date)
+    // If the form hasn't been submitted yet, display available borrowed books
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-        // Only fetch books if the form has not been submitted yet
+        // Prepare the query to fetch borrowed books without a return date
         $sql = "SELECT transaction_id, Books.book_id, title FROM BorrowedBooks
                 JOIN Books ON BorrowedBooks.book_id = Books.book_id 
                 WHERE BorrowedBooks.user_id = ? AND return_date IS NULL";
         $stmt = $conn->prepare($sql);
+        if ($stmt === false) {
+            die("Error preparing statement: " . $conn->error);
+        }
         $stmt->bind_param("i", $userId);
         $stmt->execute();
         $result = $stmt->get_result();
 
-        if ($result->num_rows > 0) {
+        if ($result && $result->num_rows > 0) {
             // Display the form for returning a book
             echo '<form action="return_books.php" method="POST">';
             echo '<label for="transaction_id">Select a book to return:</label>';
             echo '<select name="transaction_id" id="transaction_id" required>';
             
-            // Display borrowed books in a dropdown
+            // Output borrowed books in a dropdown, sanitizing the title output
             while ($row = $result->fetch_assoc()) {
-                echo '<option value="' . $row['transaction_id'] . '">' . $row['title'] . '</option>';
+                $transactionId = intval($row['transaction_id']);
+                $title = htmlspecialchars($row['title'], ENT_QUOTES, 'UTF-8');
+                echo '<option value="' . $transactionId . '">' . $title . '</option>';
             }
-
             echo '</select><br><br>';
             echo '<button type="submit">Return Book</button>';
             echo '</form>';
 
-            // Free the result set
             $result->free();
         } else {
             echo "<p>You have no books to return.</p>";
         }
 
-        // Close the statement after fetching results
         $stmt->close();
     }
 
-    // Check if form was submitted to return a book
+    // Handle the return process if the form was submitted
     if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-        // Get the transaction_id from the form
-        $transactionId = $_POST['transaction_id'];
+        // Sanitize and validate the transaction_id from POST input
+        $transactionId = filter_input(INPUT_POST, 'transaction_id', FILTER_VALIDATE_INT);
+        if ($transactionId === false || $transactionId === null) {
+            echo "<p>Invalid transaction ID provided.</p>";
+            exit();
+        }
 
-        // Fetch the book_id associated with the transaction
+        // Fetch the book_id associated with the given transaction using a prepared statement
         $getBookIdSql = "SELECT book_id FROM BorrowedBooks WHERE transaction_id = ?";
         $stmtGetBookId = $conn->prepare($getBookIdSql);
+        if ($stmtGetBookId === false) {
+            die("Error preparing statement: " . $conn->error);
+        }
         $stmtGetBookId->bind_param("i", $transactionId);
         $stmtGetBookId->execute();
         $stmtGetBookId->bind_result($bookId);
-        $stmtGetBookId->fetch(); // Ensure result is fetched
-
-        // Close the prepared statement after fetching the result
+        $stmtGetBookId->fetch();
         $stmtGetBookId->close();
 
         if ($bookId) {
             // Update the return_date in BorrowedBooks to the current timestamp
-            $returnDate = date('Y-m-d H:i:s'); // Current timestamp
+            $returnDate = date('Y-m-d H:i:s');
             $updateReturnDateSql = "UPDATE BorrowedBooks SET return_date = ? WHERE transaction_id = ?";
             $updateStmt = $conn->prepare($updateReturnDateSql);
+            if ($updateStmt === false) {
+                die("Error preparing statement: " . $conn->error);
+            }
             $updateStmt->bind_param("si", $returnDate, $transactionId);
             $updateStmt->execute();
-            $updateStmt->close(); // Close the return update statement
+            $updateStmt->close();
 
             // Update the status of the book to 'available' in the Books table
             $updateBookStatusSql = "UPDATE Books SET status = 'available' WHERE book_id = ?";
             $updateBookStmt = $conn->prepare($updateBookStatusSql);
+            if ($updateBookStmt === false) {
+                die("Error preparing statement: " . $conn->error);
+            }
             $updateBookStmt->bind_param("i", $bookId);
             $updateBookStmt->execute();
-            $updateBookStmt->close(); // Close the book update statement
+            $updateBookStmt->close();
 
             echo "<p>Book returned successfully!</p>";
         } else {
@@ -101,4 +115,3 @@ $conn->close();
     <p><a href="dashboard.html">Back to Dashboard</a></p>
 </body>
 </html>
-

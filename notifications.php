@@ -8,34 +8,54 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
-$userId = $_SESSION['user_id'];
+$userId = intval($_SESSION['user_id']);
 
-// Handle filter selection
-$filter = isset($_GET['filter']) && $_GET['filter'] === 'unread' ? 'unread' : 'all';
+// Sanitize and validate the filter parameter (only allow 'unread' or default to 'all')
+$filter = filter_input(INPUT_GET, 'filter', FILTER_SANITIZE_STRING);
+$filter = ($filter === 'unread') ? 'unread' : 'all';
 
-// Handle status update
+// Handle status update using POST
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $notification_id = $_POST['notification_id'];
-    $new_status = $_POST['status'] === 'unread' ? 'read' : 'unread';
+    // Sanitize and validate the notification ID from POST data
+    $notification_id = filter_input(INPUT_POST, 'notification_id', FILTER_VALIDATE_INT);
+    if ($notification_id === false || $notification_id === null) {
+        echo "Invalid notification ID.";
+        exit();
+    }
+    // Sanitize the status posted and compute new status
+    $posted_status = filter_input(INPUT_POST, 'status', FILTER_SANITIZE_STRING);
+    $new_status = ($posted_status === 'unread') ? 'read' : 'unread';
 
-    $sql = "UPDATE notifications SET status='$new_status' WHERE notification_id=$notification_id AND user_id=$userId";
-    if ($conn->query($sql) === TRUE) {
-        header("Location: notifications.php?filter=$filter"); // Retain filter on redirect
+    // Use a prepared statement for the update
+    $updateSql = "UPDATE notifications SET status = ? WHERE notification_id = ? AND user_id = ?";
+    $stmt = $conn->prepare($updateSql);
+    if ($stmt === false) {
+        die("Error preparing statement: " . $conn->error);
+    }
+    $stmt->bind_param("sii", $new_status, $notification_id, $userId);
+    if ($stmt->execute()) {
+        header("Location: notifications.php?filter=" . urlencode($filter)); // Retain filter on redirect
         exit();
     } else {
-        echo "Error: " . $sql . "<br>" . $conn->error;
+        echo "Error updating notification: " . $stmt->error;
     }
+    $stmt->close();
 }
 
-// Fetch notifications based on the filter
-$sql = "SELECT * FROM notifications WHERE user_id = $userId";
+// Build the SELECT query using a prepared statement
 if ($filter === 'unread') {
-    $sql .= " AND status = 'unread'";
+    $sql = "SELECT * FROM notifications WHERE user_id = ? AND status = 'unread' ORDER BY notification_date DESC";
+} else {
+    $sql = "SELECT * FROM notifications WHERE user_id = ? ORDER BY notification_date DESC";
 }
-$sql .= " ORDER BY notification_date DESC";
-$result = $conn->query($sql);
+$stmt = $conn->prepare($sql);
+if ($stmt === false) {
+    die("Error preparing statement: " . $conn->error);
+}
+$stmt->bind_param("i", $userId);
+$stmt->execute();
+$result = $stmt->get_result();
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -91,21 +111,21 @@ $result = $conn->query($sql);
 
     <!-- Filter Options -->
     <div class="filters">
-        <a href="notifications.php?filter=all" class="<?= $filter === 'all' ? 'active' : '' ?>">All</a>
-        <a href="notifications.php?filter=unread" class="<?= $filter === 'unread' ? 'active' : '' ?>">Unread</a>
+        <a href="notifications.php?filter=all" class="<?= ($filter === 'all') ? 'active' : '' ?>">All</a>
+        <a href="notifications.php?filter=unread" class="<?= ($filter === 'unread') ? 'active' : '' ?>">Unread</a>
     </div>
 
     <!-- Notification List -->
     <?php if ($result->num_rows > 0): ?>
         <?php while ($row = $result->fetch_assoc()): ?>
-            <div class="notification <?= $row['status'] ?>">
-                <p><strong>Message:</strong> <?= htmlspecialchars($row['message']) ?></p>
-                <p><small><strong>Date:</strong> <?= $row['notification_date'] ?></small></p>
+            <div class="notification <?= htmlspecialchars($row['status'], ENT_QUOTES, 'UTF-8') ?>">
+                <p><strong>Message:</strong> <?= htmlspecialchars($row['message'], ENT_QUOTES, 'UTF-8') ?></p>
+                <p><small><strong>Date:</strong> <?= htmlspecialchars($row['notification_date'], ENT_QUOTES, 'UTF-8') ?></small></p>
                 <form method="POST" action="">
-                    <input type="hidden" name="notification_id" value="<?= $row['notification_id'] ?>">
-                    <input type="hidden" name="status" value="<?= $row['status'] ?>">
+                    <input type="hidden" name="notification_id" value="<?= intval($row['notification_id']) ?>">
+                    <input type="hidden" name="status" value="<?= htmlspecialchars($row['status'], ENT_QUOTES, 'UTF-8') ?>">
                     <button type="submit">
-                        <?= $row['status'] === 'unread' ? 'Mark as Read' : 'Mark as Unread' ?>
+                        <?= ($row['status'] === 'unread') ? 'Mark as Read' : 'Mark as Unread' ?>
                     </button>
                 </form>
             </div>
@@ -118,8 +138,7 @@ $result = $conn->query($sql);
     <a href="dashboard.html" class="back-link">Back to Dashboard</a>
 </body>
 </html>
-
 <?php
+$stmt->close();
 $conn->close();
 ?>
-

@@ -98,14 +98,19 @@
     <!-- Display search results -->
     <div class="results">
         <?php
-        // Check if the form was submitted
+        // Check if the form was submitted and sanitize the input
         if ($_SERVER['REQUEST_METHOD'] == 'GET' && isset($_GET['query'])) {
             include 'db_connection.php';
 
-            // Get the search query
-            $searchTerm = $_GET['query'];
+            // Sanitize the search query
+            $searchTerm = trim(filter_input(INPUT_GET, 'query', FILTER_SANITIZE_STRING));
+
+            // Prepare and execute the query using a prepared statement
             $sql = "SELECT * FROM Books WHERE title LIKE ? OR author LIKE ? OR genre LIKE ?";
             $stmt = $conn->prepare($sql);
+            if ($stmt === false) {
+                die("Error preparing statement: " . $conn->error);
+            }
             $searchPattern = "%" . $searchTerm . "%";
             $stmt->bind_param("sss", $searchPattern, $searchPattern, $searchPattern);
             $stmt->execute();
@@ -115,9 +120,9 @@
             if ($result->num_rows > 0) {
                 while ($row = $result->fetch_assoc()) {
                     echo '<div class="book-item">';
-                    echo '<h3>' . $row['title'] . '</h3>';
-                    echo '<p><strong>Author:</strong> ' . $row['author'] . '</p>';
-                    echo '<p><strong>Genre:</strong> ' . $row['genre'] . '</p>';
+                    echo '<h3>' . htmlspecialchars($row['title'], ENT_QUOTES, 'UTF-8') . '</h3>';
+                    echo '<p><strong>Author:</strong> ' . htmlspecialchars($row['author'], ENT_QUOTES, 'UTF-8') . '</p>';
+                    echo '<p><strong>Genre:</strong> ' . htmlspecialchars($row['genre'], ENT_QUOTES, 'UTF-8') . '</p>';
                     echo '</div>';
                     echo '<hr>';
                 }
@@ -125,7 +130,7 @@
                 echo "<p>No books found matching your search criteria.</p>";
             }
 
-            // Close the database connection
+            // Close the statement and connection
             $stmt->close();
             $conn->close();
         }
@@ -140,4 +145,3 @@
 
 </body>
 </html>
-

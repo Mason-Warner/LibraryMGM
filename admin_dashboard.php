@@ -58,19 +58,25 @@ if (isset($_SESSION['admin_id'])) {
     echo "<input type='submit' name='send_notification' value='Send Notification'>";
     echo "</form>";
 
-    // Handle the notification form submission
+    // Handle the notification form submission with input sanitation and prepared statements
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_notification'])) {
-        $user_id = $_POST['user_id'];
-        $message = $conn->real_escape_string($_POST['message']);
+        // Sanitize inputs
+        $user_id = intval($_POST['user_id']);
+        $message = trim($_POST['message']);
 
-        // Insert the notification into the database
-        $sql = "INSERT INTO notifications (user_id, message, status) VALUES ($user_id, '$message', 'unread')";
+        // Prepare the SQL statement to insert a new notification
+        $stmt = $conn->prepare("INSERT INTO notifications (user_id, message, status) VALUES (?, ?, 'unread')");
+        if ($stmt === false) {
+            die("Error preparing statement: " . $conn->error);
+        }
+        $stmt->bind_param("is", $user_id, $message);
 
-        if ($conn->query($sql) === TRUE) {
+        if ($stmt->execute()) {
             echo "<p>Notification sent successfully to User ID: $user_id.</p>";
         } else {
-            echo "<p>Error sending notification: " . $conn->error . "</p>";
+            echo "<p>Error sending notification: " . $stmt->error . "</p>";
         }
+        $stmt->close();
     }
 } else {
     echo "Access denied. Admins only.";
@@ -79,4 +85,3 @@ if (isset($_SESSION['admin_id'])) {
 $conn->close();
 ?>
 </html>
-

@@ -69,48 +69,68 @@
     <?php
     include 'db_connection.php';
 
-    if (isset($_GET['id'])) {
-        $id = $_GET['id'];
+    // Sanitize and validate the book ID from the GET parameter
+    $id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
+    if ($id === false || $id === null) {
+        echo "<p>Invalid book ID.</p>";
+        exit();
+    }
 
-        if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-            // Get form data
-            $title = $_POST['title'];
-            $author = $_POST['author'];
-            $genre = $_POST['genre'];
+    // If the form is submitted, process the update
+    if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+        // Sanitize input values from POST
+        $title  = trim(filter_input(INPUT_POST, 'title', FILTER_SANITIZE_STRING));
+        $author = trim(filter_input(INPUT_POST, 'author', FILTER_SANITIZE_STRING));
+        $genre  = trim(filter_input(INPUT_POST, 'genre', FILTER_SANITIZE_STRING));
 
-            // Update the book in the database
-            $sql = "UPDATE books SET title='$title', author='$author', genre='$genre' WHERE book_id=$id";
-            if ($conn->query($sql) === TRUE) {
-                echo "<p>Book updated successfully.</p>";
-                header("Location: admin_dashboard.php"); // Redirect after update
-            } else {
-                echo "<p>Error updating record: " . $conn->error . "</p>";
-            }
-        } else {
-            // Fetch the existing book details
-            $sql = "SELECT * FROM books WHERE book_id=$id";
-            $result = $conn->query($sql);
-            if ($result->num_rows > 0) {
-                $book = $result->fetch_assoc();
-            } else {
-                echo "<p>Book not found.</p>";
-            }
+        // Use a prepared statement to update the book record
+        $update_sql = "UPDATE Books SET title = ?, author = ?, genre = ? WHERE book_id = ?";
+        $stmt = $conn->prepare($update_sql);
+        if ($stmt === false) {
+            die("Error preparing statement: " . $conn->error);
         }
+        $stmt->bind_param("sssi", $title, $author, $genre, $id);
+
+        if ($stmt->execute()) {
+            echo "<p>Book updated successfully.</p>";
+            header("Location: admin_dashboard.php");
+            exit();
+        } else {
+            echo "<p>Error updating record: " . $stmt->error . "</p>";
+        }
+        $stmt->close();
+    } else {
+        // Fetch the existing book details using a prepared statement
+        $select_sql = "SELECT * FROM Books WHERE book_id = ?";
+        $stmt = $conn->prepare($select_sql);
+        if ($stmt === false) {
+            die("Error preparing statement: " . $conn->error);
+        }
+        $stmt->bind_param("i", $id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        if ($result->num_rows > 0) {
+            $book = $result->fetch_assoc();
+        } else {
+            echo "<p>Book not found.</p>";
+            exit();
+        }
+        $stmt->close();
     }
 
     $conn->close();
     ?>
 
     <?php if (isset($book)): ?>
-        <form action="update_book.php?id=<?php echo $book['book_id']; ?>" method="POST">
+        <form action="update_book.php?id=<?php echo htmlspecialchars($book['book_id'], ENT_QUOTES, 'UTF-8'); ?>" method="POST">
             <label for="title">Title</label>
-            <input type="text" name="title" id="title" value="<?php echo $book['title']; ?>" required>
+            <input type="text" name="title" id="title" value="<?php echo htmlspecialchars($book['title'], ENT_QUOTES, 'UTF-8'); ?>" required>
 
             <label for="author">Author</label>
-            <input type="text" name="author" id="author" value="<?php echo $book['author']; ?>" required>
+            <input type="text" name="author" id="author" value="<?php echo htmlspecialchars($book['author'], ENT_QUOTES, 'UTF-8'); ?>" required>
 
             <label for="genre">Genre</label>
-            <input type="text" name="genre" id="genre" value="<?php echo $book['genre']; ?>" required>
+            <input type="text" name="genre" id="genre" value="<?php echo htmlspecialchars($book['genre'], ENT_QUOTES, 'UTF-8'); ?>" required>
 
             <input type="submit" value="Update Book">
         </form>
@@ -123,4 +143,3 @@
 
 </body>
 </html>
-
