@@ -4,6 +4,26 @@ session_start();
 include 'db_connection.php';
 require_once 'logger.php'; // Include the logging function
 
+// --- Encryption Setup ---
+// Hard-coded encryption parameters (for development/testing only)
+// For AES-256-CBC, the key must be 32 bytes and the IV must be 16 bytes.
+define('ENCRYPTION_KEY', 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6'); // 32 characters for AES-256
+define('ENCRYPTION_IV', 'abcdef1234567890');                   // 16 bytes for AES-256-CBC
+
+/**
+ * Encrypts plaintext using AES-256-CBC.
+ *
+ * @param string $plaintext The plain text to encrypt.
+ * @param string $key       The encryption key.
+ * @param string $iv        The initialization vector.
+ * @return string           Base64 encoded encrypted data.
+ */
+function encryptData($plaintext, $key, $iv) {
+    $encrypted = openssl_encrypt((string)$plaintext, 'AES-256-CBC', $key, 0, $iv);
+    return base64_encode($encrypted);
+}
+// --- End Encryption Setup ---
+
 // Ensure the user is logged in and is an admin
 if (!isset($_SESSION['admin_id'])) {
     echo "You must be logged in to edit user profiles.";
@@ -71,17 +91,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         echo "User profile updated successfully.";
         
         // Build log details for the update action
+        // Here we leave the IDs in plaintext, so you can readily see who was edited and by whom.
+        // The other fields are encrypted to protect the sensitive content.
         $logDetails = [
-            'edited_user_id'     => $edit_user_id,
-            'new_username'       => $username,
-            'new_full_name'      => $full_name,
-            'new_email'          => $email,
-            'new_contact_number' => $contact_number,
-            'changed_by_admin'   => $admin_id,
+            'edited_user_id'     => $edit_user_id,  // Plain text
+            'new_username'       => encryptData($username, ENCRYPTION_KEY, ENCRYPTION_IV),
+            'new_full_name'      => encryptData($full_name, ENCRYPTION_KEY, ENCRYPTION_IV),
+            'new_email'          => encryptData($email, ENCRYPTION_KEY, ENCRYPTION_IV),
+            'new_contact_number' => encryptData($contact_number, ENCRYPTION_KEY, ENCRYPTION_IV),
+            'changed_by_admin'   => $admin_id,  // Plain text
             'update_time'        => date('Y-m-d H:i:s')
         ];
         logAction('update_user', $logDetails);
         
+        // Redirect to the manage_users.php page after the update
+        header("Location: manage_users.php");
+        exit;  // Always call exit after a header redirect
     } else {
         echo "Error updating user profile: " . $stmt->error;
     }
