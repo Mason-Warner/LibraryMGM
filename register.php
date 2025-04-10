@@ -34,7 +34,7 @@ function encryptData($plaintext, $key, $iv) {
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     // Sanitize and validate inputs
     $username      = trim(filter_input(INPUT_POST, 'username', FILTER_SANITIZE_STRING));
-    $rawPassword   = trim($_POST['password']); // Password is processed as-is for hashing
+    $rawPassword   = trim($_POST['password']); // Process password as-is for hashing
     $fullName      = trim(filter_input(INPUT_POST, 'full_name', FILTER_SANITIZE_STRING));
     $email         = trim(filter_input(INPUT_POST, 'email', FILTER_SANITIZE_EMAIL));
     $contactNumber = trim(filter_input(INPUT_POST, 'contact_number', FILTER_SANITIZE_STRING));
@@ -54,19 +54,26 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     // Hash the password using PASSWORD_BCRYPT
     $password = password_hash($rawPassword, PASSWORD_BCRYPT);
 
-    // Prepare the SQL statement to insert a new user (including contact_number)
+    // Encrypt sensitive data for MySQL storage:
+    // The username remains unencrypted so that users can log in normally.
+    $encryptedFullName      = encryptData($fullName, ENCRYPTION_KEY, ENCRYPTION_IV);
+    $encryptedEmail         = encryptData($email, ENCRYPTION_KEY, ENCRYPTION_IV);
+    $encryptedContactNumber = encryptData($contactNumber, ENCRYPTION_KEY, ENCRYPTION_IV);
+
+    // Prepare the SQL statement to insert a new user (contact_number included)
+    // The username is stored as plaintext.
     $sql = "INSERT INTO Users (username, password, full_name, email, contact_number) VALUES (?, ?, ?, ?, ?)";
     $stmt = $conn->prepare($sql);
     if ($stmt === false) {
         die("Error preparing statement: " . $conn->error);
     }
-    $stmt->bind_param("sssss", $username, $password, $fullName, $email, $contactNumber);
+    $stmt->bind_param("sssss", $username, $password, $encryptedFullName, $encryptedEmail, $encryptedContactNumber);
 
     // Execute the statement
     if ($stmt->execute()) {
-        // Build log details with sensitive data encrypted
+        // Optionally log the registration event (with sensitive fields encrypted for the log if desired)
         $logDetails = [
-            'username'          => encryptData($username, ENCRYPTION_KEY, ENCRYPTION_IV),
+            'username'          => $username, // Plain text for audit consistency
             'full_name'         => encryptData($fullName, ENCRYPTION_KEY, ENCRYPTION_IV),
             'email'             => encryptData($email, ENCRYPTION_KEY, ENCRYPTION_IV),
             'contact_number'    => encryptData($contactNumber, ENCRYPTION_KEY, ENCRYPTION_IV),

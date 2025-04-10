@@ -22,6 +22,19 @@ function encryptData($plaintext, $key, $iv) {
     $encrypted = openssl_encrypt((string)$plaintext, 'AES-256-CBC', $key, 0, $iv);
     return base64_encode($encrypted);
 }
+
+/**
+ * Decrypts a Base64 encoded ciphertext using AES-256-CBC.
+ *
+ * @param string $encryptedData Base64 encoded encrypted data.
+ * @param string $key           The encryption key.
+ * @param string $iv            The initialization vector.
+ * @return string               The decrypted plain text.
+ */
+function decryptData($encryptedData, $key, $iv) {
+    $decoded = base64_decode($encryptedData);
+    return openssl_decrypt($decoded, 'AES-256-CBC', $key, 0, $iv);
+}
 // --- End Encryption Setup ---
 
 // Ensure the user is logged in and is an admin
@@ -59,6 +72,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     
     $username = trim(filter_input(INPUT_POST, 'username', FILTER_SANITIZE_STRING));
+    // For updates, assume full name, email, and contact number are entered in plain text by the admin,
+    // then re-encrypt before updating the database.
     $full_name = trim(filter_input(INPUT_POST, 'full_name', FILTER_SANITIZE_STRING));
     $email = trim(filter_input(INPUT_POST, 'email', FILTER_SANITIZE_EMAIL));
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -76,14 +91,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!$stmt) {
             die("Error preparing statement: " . $conn->error);
         }
-        $stmt->bind_param("sssssi", $username, $full_name, $email, $contact_number, $password, $edit_user_id);
+        $stmt->bind_param("sssssi", 
+            $username, 
+            // Encrypt sensitive fields for storage
+            encryptData($full_name, ENCRYPTION_KEY, ENCRYPTION_IV),
+            encryptData($email, ENCRYPTION_KEY, ENCRYPTION_IV),
+            encryptData($contact_number, ENCRYPTION_KEY, ENCRYPTION_IV),
+            $password, 
+            $edit_user_id
+        );
     } else {
         $update_sql = "UPDATE users SET username = ?, full_name = ?, email = ?, contact_number = ? WHERE user_id = ?";
         $stmt = $conn->prepare($update_sql);
         if (!$stmt) {
             die("Error preparing statement: " . $conn->error);
         }
-        $stmt->bind_param("ssssi", $username, $full_name, $email, $contact_number, $edit_user_id);
+        $stmt->bind_param("ssssi", 
+            $username, 
+            // Encrypt sensitive fields for storage
+            encryptData($full_name, ENCRYPTION_KEY, ENCRYPTION_IV),
+            encryptData($email, ENCRYPTION_KEY, ENCRYPTION_IV),
+            encryptData($contact_number, ENCRYPTION_KEY, ENCRYPTION_IV),
+            $edit_user_id
+        );
     }
     
     // Execute the update
@@ -91,15 +121,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         echo "User profile updated successfully.";
         
         // Build log details for the update action
-        // Here we leave the IDs in plaintext, so you can readily see who was edited and by whom.
-        // The other fields are encrypted to protect the sensitive content.
+        // For the log, we can choose to encrypt the updated sensitive fields (or log them as plain text based on your needs).
         $logDetails = [
             'edited_user_id'     => $edit_user_id,  // Plain text
-            'new_username'       => encryptData($username, ENCRYPTION_KEY, ENCRYPTION_IV),
+            'new_username'       => $username,      // Plain text for audit
             'new_full_name'      => encryptData($full_name, ENCRYPTION_KEY, ENCRYPTION_IV),
             'new_email'          => encryptData($email, ENCRYPTION_KEY, ENCRYPTION_IV),
             'new_contact_number' => encryptData($contact_number, ENCRYPTION_KEY, ENCRYPTION_IV),
-            'changed_by_admin'   => $admin_id,  // Plain text
+            'changed_by_admin'   => $admin_id,      // Plain text
             'update_time'        => date('Y-m-d H:i:s')
         ];
         logAction('update_user', $logDetails);
@@ -132,6 +161,10 @@ if (isset($_GET['id'])) {
     if ($result->num_rows > 0) {
         // Fetch the user details
         $user = $result->fetch_assoc();
+        // Decrypt sensitive fields before displaying them in the UI.
+        $user['full_name'] = decryptData($user['full_name'], ENCRYPTION_KEY, ENCRYPTION_IV);
+        $user['email'] = decryptData($user['email'], ENCRYPTION_KEY, ENCRYPTION_IV);
+        $user['contact_number'] = decryptData($user['contact_number'], ENCRYPTION_KEY, ENCRYPTION_IV);
     } else {
         echo "User not found.";
         exit;
