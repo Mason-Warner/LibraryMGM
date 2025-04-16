@@ -1,0 +1,76 @@
+/* General Reset */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* Body Styling */
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #1e1e1e;
+  color: #d4d4d4;
+  line-height: 1.6;
+  padding: 20px;
+}
+
+/* Container */
+.container {
+  max-width: 900px;
+  margin: 40px auto;
+  background-color: #252526;
+  padding: 30px;
+  border-radius: 10px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+}
+
+/* Header */
+header h1 {
+  text-align: center;
+  font-size: 2rem;
+  color: #ffffff;
+  margin-bottom: 30px;
+}
+
+/* Navigation */
+.nav-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 15px;
+  margin-bottom: 40px;
+}
+
+.nav-links a {
+  display: inline-block;
+  padding: 12px 24px;
+  background-color: #3a3d41;
+  color: #ffffff;
+  text-decoration: none;
+  border-radius: 6px;
+  font-weight: 500;
+  border: 1px solid #3f3f46;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.nav-links a:hover {
+  background-color: #505357;
+  border-color: #646464;
+}
+
+.nav-links .logout {
+  background-color: #5c2e2e;
+  border-color: #6c3c3c;
+}
+
+.nav-links .logout:hover {
+  background-color: #783535;
+  border-color: #8b4444;
+}
+
+/* Main content */
+main {
+  padding: 10px;
+  color: #cccccc;
+}
+

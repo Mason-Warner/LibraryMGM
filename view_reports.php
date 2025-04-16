@@ -15,61 +15,189 @@ if (isset($_SESSION['admin_id'])) {
         'timestamp' => date('Y-m-d H:i:s')
     ];
     logAction('view_reports', $logDetails);
+?>
 
-    // Link back to admin dashboard
-    echo "<p><a href='admin_dashboard.php'>Back to Admin Dashboard</a></p>";
-
-    echo "<h1>Reports</h1>";
-
-    // Report: Most Borrowed Books
-    echo "<h2>Most Borrowed Books</h2>";
-    $sql = "SELECT books.title, COUNT(BorrowedBooks.book_id) AS borrow_count 
-            FROM BorrowedBooks 
-            JOIN books ON BorrowedBooks.book_id = books.book_id 
-            GROUP BY BorrowedBooks.book_id 
-            ORDER BY borrow_count DESC 
-            LIMIT 5";
-    $result = $conn->query($sql);
-
-    if ($result && $result->num_rows > 0) {
-        echo "<table border='1'>";
-        echo "<tr><th>Title</th><th>Times Borrowed</th></tr>";
-        while ($row = $result->fetch_assoc()) {
-            // Escape output for safety
-            $title = htmlspecialchars($row['title'], ENT_QUOTES, 'UTF-8');
-            $borrow_count = htmlspecialchars($row['borrow_count'], ENT_QUOTES, 'UTF-8');
-            echo "<tr><td>$title</td><td>$borrow_count</td></tr>";
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reports</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+            margin: 0;
+            padding: 20px;
         }
-        echo "</table>";
-    } else {
-        echo "<p>No data available.</p>";
-    }
 
-    // Report: Overdue Books
-    echo "<h2>Overdue Books</h2>";
-    $overdue_sql = "SELECT users.full_name, books.title, BorrowedBooks.due_date 
-                    FROM BorrowedBooks 
-                    JOIN books ON BorrowedBooks.book_id = books.book_id 
-                    JOIN users ON BorrowedBooks.user_id = users.user_id 
-                    WHERE books.status = 'borrowed' AND BorrowedBooks.due_date < CURDATE()";
-    $overdue_result = $conn->query($overdue_sql);
-
-    if ($overdue_result && $overdue_result->num_rows > 0) {
-        echo "<table border='1'>";
-        echo "<tr><th>User</th><th>Title</th><th>Due Date</th></tr>";
-        while ($row = $overdue_result->fetch_assoc()) {
-            $full_name = htmlspecialchars($row['full_name'], ENT_QUOTES, 'UTF-8');
-            $title = htmlspecialchars($row['title'], ENT_QUOTES, 'UTF-8');
-            $due_date = htmlspecialchars($row['due_date'], ENT_QUOTES, 'UTF-8');
-            echo "<tr><td>$full_name</td><td>$title</td><td>$due_date</td></tr>";
+        h1, h2 {
+            color: #ffffff;
         }
-        echo "</table>";
-    } else {
-        echo "<p>No overdue books at this time.</p>";
-    }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+
+        .actions a {
+            background-color: #2d2d2d;
+            color: #ffffff;
+            padding: 10px 20px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: bold;
+            transition: background-color 0.3s ease;
+        }
+
+        .actions a:hover {
+            background-color: #3a3d41;
+        }
+
+        .actions a.logout {
+            background-color: #b33a3a;
+        }
+
+        .actions a.logout:hover {
+            background-color: #d64545;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+        }
+
+        th, td {
+            border: 1px solid #444;
+            padding: 12px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #2a2a2a;
+            color: #fff;
+        }
+
+        tr:nth-child(even) {
+            background-color: #2d2d2d;
+        }
+        
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-update {
+            background-color: #3a3d41;
+            color: #fff;
+        }
+
+        .btn-update:hover {
+            background-color: #505357;
+        }
+
+        .btn-delete {
+            background-color: #b33a3a;
+            color: #fff;
+        }
+
+        .btn-delete:hover {
+            background-color: #d64545;
+        }
+    </style>
+</head>
+<body class="admin-body">
+
+    <!-- Include the Admin Navbar -->
+    <?php include 'admin_nav.php'; ?>
+
+    <div class="container">
+        <h1 class="page-title">Reports</h1>
+
+        <!-- Report: Most Borrowed Books -->
+        <h2>Most Borrowed Books</h2>
+        <?php
+        $sql = "SELECT books.title, COUNT(BorrowedBooks.book_id) AS borrow_count 
+                FROM BorrowedBooks 
+                JOIN books ON BorrowedBooks.book_id = books.book_id 
+                GROUP BY BorrowedBooks.book_id 
+                ORDER BY borrow_count DESC 
+                LIMIT 5";
+        $result = $conn->query($sql);
+
+        if ($result && $result->num_rows > 0): ?>
+            <table class="styled-table">
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Times Borrowed</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php while ($row = $result->fetch_assoc()): ?>
+                        <tr>
+                            <td><?= htmlspecialchars($row['title'], ENT_QUOTES, 'UTF-8') ?></td>
+                            <td><?= htmlspecialchars($row['borrow_count'], ENT_QUOTES, 'UTF-8') ?></td>
+                        </tr>
+                    <?php endwhile; ?>
+                </tbody>
+            </table>
+        <?php else: ?>
+            <p>No data available.</p>
+        <?php endif; ?>
+
+        <!-- Report: Overdue Books -->
+        <h2>Overdue Books</h2>
+        <?php
+        $overdue_sql = "SELECT users.full_name, books.title, BorrowedBooks.due_date 
+                        FROM BorrowedBooks 
+                        JOIN books ON BorrowedBooks.book_id = books.book_id 
+                        JOIN users ON BorrowedBooks.user_id = users.user_id 
+                        WHERE books.status = 'borrowed' AND BorrowedBooks.due_date < CURDATE()";
+        $overdue_result = $conn->query($overdue_sql);
+
+        if ($overdue_result && $overdue_result->num_rows > 0): ?>
+            <table class="styled-table">
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Title</th>
+                        <th>Due Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php while ($row = $overdue_result->fetch_assoc()): ?>
+                        <tr>
+                            <td><?= htmlspecialchars($row['full_name'], ENT_QUOTES, 'UTF-8') ?></td>
+                            <td><?= htmlspecialchars($row['title'], ENT_QUOTES, 'UTF-8') ?></td>
+                            <td><?= htmlspecialchars($row['due_date'], ENT_QUOTES, 'UTF-8') ?></td>
+                        </tr>
+                    <?php endwhile; ?>
+                </tbody>
+            </table>
+        <?php else: ?>
+            <p>No overdue books at this time.</p>
+        <?php endif; ?>
+
+    </div>
+
+</body>
+</html>
+
+<?php
 } else {
-    echo "Access denied. Admins only.";
+    echo "<p class='error-text'>Access denied. Admins only.</p>";
 }
 
 $conn->close();
 ?>
+

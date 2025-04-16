@@ -1,93 +1,91 @@
+<?php
+session_start();
+include 'db_connection.php';
+require_once 'logger.php';
+
+$unreadCount = 0;
+
+if (isset($_SESSION['user_id'])) {
+    $userId = intval($_SESSION['user_id']);
+
+    // Get unread notification count
+    $countStmt = $conn->prepare("SELECT COUNT(*) FROM notifications WHERE user_id = ? AND status = 'unread'");
+    if ($countStmt) {
+        $countStmt->bind_param("i", $userId);
+        $countStmt->execute();
+        $countStmt->bind_result($unreadCount);
+        $countStmt->fetch();
+        $countStmt->close();
+    }
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Search for Books</title>
+    <link rel="stylesheet" href="/css/style.css" />
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f9f9f9;
-        }
-        .container {
-            width: 80%;
-            max-width: 900px;
-            margin: 50px auto;
-            padding: 20px;
-            background-color: #fff;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-        }
-        h1 {
-            text-align: center;
-            color: #333;
-        }
-        form {
-            margin-bottom: 30px;
-        }
+        /* Updated form input and button to match the borrow/return page styles */
         input[type="text"] {
-            width: 70%;
-            padding: 8px;
+            width: 100%;
+            padding: 12px 20px;
             font-size: 16px;
             margin-right: 10px;
+            border-radius: 6px;
             border: 1px solid #ccc;
-            border-radius: 4px;
+            background-color: #1e1e1e;
+            color: #eee;
         }
+
         button {
-            padding: 8px 15px;
+            padding: 12px 20px;
             font-size: 16px;
-            background-color: #007bff;
-            color: white;
+            background-color: #5a6e8c;
+            color: #fff;
             border: none;
-            border-radius: 4px;
+            border-radius: 6px;
             cursor: pointer;
+            transition: background-color 0.2s ease-in-out;
+            margin-top: 10px;  /* Added margin for extra space */
         }
+
         button:hover {
-            background-color: #0056b3;
+            background-color: #4a5d78;
         }
-        .results {
-            margin-top: 20px;
+
+        .notifications-link {
+            position: relative;
         }
-        .book-item {
-            padding: 10px;
-            background-color: #f7f7f7;
-            border: 1px solid #ddd;
-            margin-bottom: 10px;
-            border-radius: 4px;
-        }
-        .book-item h3 {
-            margin: 0;
-            color: #333;
-        }
-        .book-item p {
-            margin: 5px 0;
-            color: #555;
-        }
-        hr {
-            border: 0;
-            border-top: 1px solid #ddd;
-        }
-        .back-to-dashboard {
-            display: block;
+
+        .notif-badge {
+            position: absolute;
+            top: -6px;
+            right: -10px;
+            background-color: #e74c3c;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 50%;
+            font-size: 0.75rem;
+            font-weight: bold;
+            line-height: 1;
+            min-width: 18px;
             text-align: center;
-            margin-top: 30px;
-            font-size: 18px;
+            box-shadow: 0 0 4px rgba(0, 0, 0, 0.4);
         }
-        .back-to-dashboard a {
-            color: #007bff;
-            text-decoration: none;
-        }
-        .back-to-dashboard a:hover {
-            text-decoration: underline;
-        }
+
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h1>Search for Books</h1>
+  <!-- Include the Navigation Bar at the Top -->
+  <?php include 'nav.php'; ?>
+
+  <div class="container">
+    <header>
+        <h1>Search for Books</h1>
+    </header>
 
     <!-- Search Form -->
     <form action="search_books.php" method="GET">
@@ -100,12 +98,9 @@
         <?php
         // Check if the form was submitted and sanitize the input
         if ($_SERVER['REQUEST_METHOD'] == 'GET' && isset($_GET['query'])) {
-            include 'db_connection.php';
-            require_once 'logger.php'; // Include the logging function
-
             // Sanitize the search query
             $searchTerm = trim(filter_input(INPUT_GET, 'query', FILTER_UNSAFE_RAW));
-            
+
             // Build log details for the search action.
             $logDetails = ['search_term' => $searchTerm];
             // Optionally capture the actor if a session is set:
@@ -117,7 +112,7 @@
                 $logDetails['user_id'] = $_SESSION['user_id'];
             }
             logAction('search_books', $logDetails);
-            
+
             // Prepare and execute the query using a prepared statement
             $sql = "SELECT * FROM Books WHERE title LIKE ? OR author LIKE ? OR genre LIKE ?";
             $stmt = $conn->prepare($sql);
@@ -149,12 +144,8 @@
         }
         ?>
     </div>
-
-    <!-- Link back to the dashboard -->
-    <div class="back-to-dashboard">
-        <a href="dashboard.html">Back to Dashboard</a>
-    </div>
-</div>
+  </div>
 
 </body>
 </html>
+

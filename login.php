@@ -58,7 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             logAction('user_login', $logDetails);
             
             // Redirect to the dashboard after successful login
-            header("Location: dashboard.html");
+            header("Location: dashboard.php");
             exit();
         } else {
             echo "Invalid password.";
