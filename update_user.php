@@ -92,8 +92,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'update_time'        => date('Y-m-d H:i:s')
         ];
         logAction('update_user', $logDetails);
-        header("Location: manage_users.php");
-        exit;
+        header("Location: manage_users.php?success=user_updated");
+	exit;
     } else {
         echo "Error updating user profile: " . $stmt->error;
     }
@@ -141,7 +141,7 @@ $conn->close();
             background-color: #1e1e1e;
             color: #d4d4d4;
             margin: 0;
-            padding: 20px;
+ /*           padding: 20px; */
         }
 
         h2 {
@@ -149,30 +149,11 @@ $conn->close();
             text-align: center;
         }
 
-        nav {
-            margin-bottom: 30px;
-        }
-
-        nav a {
-            background-color: #2d2d2d;
-            color: #ffffff;
-            padding: 10px 20px;
-            border-radius: 8px;
-            text-decoration: none;
-            font-weight: bold;
-            margin-right: 10px;
-            transition: background-color 0.3s ease;
-        }
-
-        nav a:hover {
-            background-color: #3a3d41;
-        }
-
         .container {
             max-width: 600px;
             margin: auto;
             background-color: #2a2a2a;
-            padding: 30px;
+/*            padding: 30px; */
             border-radius: 10px;
         }
 
@@ -227,10 +208,7 @@ $conn->close();
 </head>
 <body>
 
-<nav>
-    <a href="admin_dashboard.php">Dashboard</a>
-    <a href="manage_users.php">Manage Users</a>
-</nav>
+<?php include 'admin_nav.php'; ?>
 
 <div class="container">
     <h2>Edit User Profile</h2>
@@ -254,7 +232,6 @@ $conn->close();
 
         <button type="submit">Update Profile</button>
     </form>
-
 </div>
 
 </body>

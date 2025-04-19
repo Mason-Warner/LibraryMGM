@@ -45,7 +45,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
         logAction('update_book', $logDetails);
 
-        header("Location: admin_dashboard.php");
+        header("Location: manage_inventory.php?updated=1");
         exit();
     } else {
         echo "<p>Error updating record: " . $stmt->error . "</p>";

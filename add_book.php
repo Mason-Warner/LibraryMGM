@@ -39,7 +39,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         // Log the action in MongoDB
         logAction('add_book', $logDetails);
 
-        header("Location: admin_dashboard.php");
+        // Redirect to inventory page with success flag
+        header("Location: manage_inventory.php?added=1");
         exit;
     } else {
         echo "Error: " . $stmt->error;
@@ -51,3 +52,4 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
 $conn->close();
 ?>
+

@@ -31,23 +31,26 @@ if (isset($_GET['id'])) {
         if ($deleteStmt->execute()) {
             // Prepare log details with the book ID
             $logDetails = [
-                'book_id' => $id
+                'book_id' => $id,
+                'delete_date' => date('Y-m-d H:i:s')
             ];
-            
+
             // Capture the actor from session (admin, librarian, or user)
             if (isset($_SESSION['admin_id'])) {
-                $logDetails['admin_id'] = $_SESSION['admin_id'];
+                $logDetails['actor'] = 'admin';
+                $logDetails['actor_id'] = $_SESSION['admin_id'];
             } elseif (isset($_SESSION['librarian_id'])) {
-                $logDetails['librarian_id'] = $_SESSION['librarian_id'];
+                $logDetails['actor'] = 'librarian';
+                $logDetails['actor_id'] = $_SESSION['librarian_id'];
             } elseif (isset($_SESSION['user_id'])) {
-                $logDetails['user_id'] = $_SESSION['user_id'];
+                $logDetails['actor'] = 'user';
+                $logDetails['actor_id'] = $_SESSION['user_id'];
             }
-            
+
             // Log the deletion action
             logAction('delete_book', $logDetails);
-            
-            echo "Book deleted successfully.";
-            header("Location: admin_dashboard.php");
+
+            header("Location: manage_inventory.php?success=book_deleted");
             exit();
         } else {
             echo "Error deleting book: " . $deleteStmt->error;
@@ -63,3 +66,4 @@ if (isset($_GET['id'])) {
 
 $conn->close();
 ?>
+

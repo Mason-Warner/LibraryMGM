@@ -27,16 +27,14 @@ if (isset($_SESSION['user_id'])) {
     <title>Search for Books</title>
     <link rel="stylesheet" href="/css/style.css" />
     <style>
-        /* Updated form input and button to match the borrow/return page styles */
         input[type="text"] {
-            width: 100%;
             padding: 12px 20px;
             font-size: 16px;
-            margin-right: 10px;
             border-radius: 6px;
             border: 1px solid #ccc;
             background-color: #1e1e1e;
             color: #eee;
+            flex-grow: 1;
         }
 
         button {
@@ -48,11 +46,22 @@ if (isset($_SESSION['user_id'])) {
             border-radius: 6px;
             cursor: pointer;
             transition: background-color 0.2s ease-in-out;
-            margin-top: 10px;  /* Added margin for extra space */
         }
 
         button:hover {
             background-color: #4a5d78;
+        }
+
+        form.search-form {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .book-item {
+            margin-top: 1.5rem;
         }
 
         .notifications-link {
@@ -74,7 +83,6 @@ if (isset($_SESSION['user_id'])) {
             text-align: center;
             box-shadow: 0 0 4px rgba(0, 0, 0, 0.4);
         }
-
     </style>
 </head>
 <body>
@@ -88,22 +96,25 @@ if (isset($_SESSION['user_id'])) {
     </header>
 
     <!-- Search Form -->
-    <form action="search_books.php" method="GET">
-        <input type="text" name="query" placeholder="Search by title, author, or genre" required>
-        <button type="submit">Search</button>
+    <form action="search_books.php" method="GET" class="search-form" id="searchForm">
+        <input type="text" name="query" id="query" placeholder="Search by title, author, or genre" required>
+        <button type="submit" name="search" value="1" onclick="setRequired(true)">Search</button>
+        <button type="submit" name="show_all" value="1" onclick="setRequired(false)">Show All</button>
     </form>
 
     <!-- Display search results -->
     <div class="results">
         <?php
-        // Check if the form was submitted and sanitize the input
-        if ($_SERVER['REQUEST_METHOD'] == 'GET' && isset($_GET['query'])) {
-            // Sanitize the search query
-            $searchTerm = trim(filter_input(INPUT_GET, 'query', FILTER_UNSAFE_RAW));
+        if ($_SERVER['REQUEST_METHOD'] == 'GET' && (isset($_GET['query']) || isset($_GET['show_all']))) {
+            $searchTerm = '';
 
-            // Build log details for the search action.
-            $logDetails = ['search_term' => $searchTerm];
-            // Optionally capture the actor if a session is set:
+            if (isset($_GET['show_all'])) {
+                $searchTerm = ''; // Show all
+            } else {
+                $searchTerm = trim(filter_input(INPUT_GET, 'query', FILTER_UNSAFE_RAW));
+            }
+
+            $logDetails = ['search_term' => $searchTerm ?: 'SHOW_ALL'];
             if (isset($_SESSION['admin_id'])) {
                 $logDetails['admin_id'] = $_SESSION['admin_id'];
             } elseif (isset($_SESSION['librarian_id'])) {
@@ -113,18 +124,24 @@ if (isset($_SESSION['user_id'])) {
             }
             logAction('search_books', $logDetails);
 
-            // Prepare and execute the query using a prepared statement
-            $sql = "SELECT * FROM Books WHERE title LIKE ? OR author LIKE ? OR genre LIKE ?";
+            $sql = "SELECT * FROM Books";
+            if ($searchTerm !== '') {
+                $sql .= " WHERE title LIKE ? OR author LIKE ? OR genre LIKE ?";
+            }
+
             $stmt = $conn->prepare($sql);
             if ($stmt === false) {
                 die("Error preparing statement: " . $conn->error);
             }
-            $searchPattern = "%" . $searchTerm . "%";
-            $stmt->bind_param("sss", $searchPattern, $searchPattern, $searchPattern);
+
+            if ($searchTerm !== '') {
+                $searchPattern = "%" . $searchTerm . "%";
+                $stmt->bind_param("sss", $searchPattern, $searchPattern, $searchPattern);
+            }
+
             $stmt->execute();
             $result = $stmt->get_result();
 
-            // Display the search results
             if ($result->num_rows > 0) {
                 while ($row = $result->fetch_assoc()) {
                     echo '<div class="book-item">';
@@ -138,13 +155,23 @@ if (isset($_SESSION['user_id'])) {
                 echo "<p>No books found matching your search criteria.</p>";
             }
 
-            // Close the statement and connection
             $stmt->close();
             $conn->close();
         }
         ?>
     </div>
   </div>
+
+  <script>
+    function setRequired(isSearch) {
+        var queryField = document.getElementById("query");
+        if (isSearch) {
+            queryField.setAttribute("required", "true");
+        } else {
+            queryField.removeAttribute("required");
+        }
+    }
+  </script>
 
 </body>
 </html>

@@ -3,181 +3,266 @@ session_start();
 include 'db_connection.php';
 require_once 'logger.php';
 
-if (!isset($_SESSION['admin_id'])) {
-    header('Location: login.php');
-    exit();
-}
+// Ensure the user is logged in as an admin
+if (isset($_SESSION['admin_id'])) {
+    $admin_id = intval($_SESSION['admin_id']);
+
+    // Log the report view
+    $logDetails = [
+        'admin_id'  => $admin_id,
+        'action'    => 'view_reports',
+        'timestamp' => date('Y-m-d H:i:s')
+    ];
+    logAction('view_reports', $logDetails);
+
+    // Fetch most borrowed books
+    $chart_labels = [];
+    $chart_data = [];
+
+    $sql = "SELECT books.title, COUNT(*) AS borrow_count 
+            FROM BorrowedBooks 
+            JOIN books ON BorrowedBooks.book_id = books.book_id 
+            GROUP BY books.title 
+            ORDER BY borrow_count DESC 
+            LIMIT 5";
+
+    $result = $conn->query($sql);
+
+    if ($result && $result->num_rows > 0) {
+        while ($row = $result->fetch_assoc()) {
+            $chart_labels[] = $row['title'];
+            $chart_data[] = $row['borrow_count'];
+        }
+    }
+
+    // Fetch overdue books
+    $overdue_sql = "SELECT users.username, books.title, BorrowedBooks.due_date 
+                    FROM BorrowedBooks 
+                    JOIN books ON BorrowedBooks.book_id = books.book_id 
+                    JOIN users ON BorrowedBooks.user_id = users.user_id 
+                    WHERE books.status = 'borrowed' AND BorrowedBooks.due_date < CURDATE()";
+    $overdue_result = $conn->query($overdue_sql);
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Admin Dashboard - LibraryMGM</title>
-  <link rel="stylesheet" href="/css/style.css">
-  <style>
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 20px;
-      background-color: #1e1e1e;
-    }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reports</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+            margin: 0;
+            padding: 20px;
+        }
 
-    th, td {
-      padding: 12px;
-      border: 1px solid #444;
-      text-align: left;
-    }
+        h1, h2 {
+            color: #ffffff;
+        }
 
-    th {
-      background-color: #2a2a2a;
-    }
+        .actions {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+        }
 
-    tr:nth-child(even) {
-      background-color: #2d2d2d;
-    }
+        .actions a {
+            background-color: #2d2d2d;
+            color: #ffffff;
+            padding: 10px 20px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: bold;
+            transition: background-color 0.3s ease;
+        }
 
-    .btn {
-      padding: 12px 20px;
-      font-size: 16px;
-      background-color: #5a6e8c;
-      color: #fff;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      text-decoration: none;
-      transition: background-color 0.2s ease-in-out;
-      display: inline-block;
-      margin-right: 10px;
-    }
+        .actions a:hover {
+            background-color: #3a3d41;
+        }
 
-    .btn:hover {
-      background-color: #4a5d78;
-    }
+        .actions a.logout {
+            background-color: #b33a3a;
+        }
 
-    .btn-delete {
-      background-color: #5c2e2e;
-      border: 1px solid #6c3c3c;
-    }
+        .actions a.logout:hover {
+            background-color: #d64545;
+        }
 
-    .btn-delete:hover {
-      background-color: #783535;
-      border-color: #8b4444;
-    }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+        }
 
-    input[type="text"],
-    input[type="number"],
-    textarea {
-      width: 100%;
-      padding: 0.6rem;
-      border-radius: 6px;
-      border: 1px solid #ccc;
-      background-color: #1e1e1e;
-      color: #eee;
-      margin-bottom: 1rem;
-    }
+        th, td {
+            border: 1px solid #444;
+            padding: 12px;
+            text-align: left;
+        }
 
-    input[type="submit"] {
-      background-color: #5a6e8c;
-      color: #fff;
-      padding: 12px 20px;
-      border: none;
-      border-radius: 6px;
-      font-size: 16px;
-      cursor: pointer;
-      transition: background-color 0.2s ease-in-out;
-      margin-top: 0.5rem;
-    }
+        th {
+            background-color: #2a2a2a;
+            color: #fff;
+        }
 
-    input[type="submit"]:hover {
-      background-color: #4a5d78;
-    }
-  </style>
+        tr:nth-child(even) {
+            background-color: #2d2d2d;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-update {
+            background-color: #3a3d41;
+            color: #fff;
+        }
+
+        .btn-update:hover {
+            background-color: #505357;
+        }
+
+        .btn-delete {
+            background-color: #b33a3a;
+            color: #fff;
+        }
+
+        .btn-delete:hover {
+            background-color: #d64545;
+        }
+
+        canvas {
+            background-color: #2d2d2d;
+            border-radius: 10px;
+            margin-bottom: 40px;
+        }
+    </style>
 </head>
-<body>
+<body class="admin-body">
 
-  <?php include 'admin_nav.php'; ?>
+    <!-- Include the Admin Navbar -->
+    <?php include 'admin_nav.php'; ?>
 
-  <div class="container">
-    <header>
-      <h1>Admin Dashboard</h1>
-    </header>
+    <div class="container">
+        <h1 class="page-title">Reports</h1>
 
-    <section>
-      <h2>Manage Inventory</h2>
-      <?php
-      $sql = "SELECT * FROM books";
-      $result = $conn->query($sql);
+        <!-- Most Borrowed Books Visualization -->
+        <h2>Most Borrowed Books</h2>
+        <canvas id="borrowedBooksChart" width="400" height="200"></canvas>
 
-      if ($result->num_rows > 0): ?>
-        <table>
-          <tr>
-            <th>ID</th><th>Title</th><th>Author</th><th>Genre</th><th>Actions</th>
-          </tr>
-          <?php while ($row = $result->fetch_assoc()): ?>
-            <tr>
-              <td><?= $row['book_id'] ?></td>
-              <td><?= htmlspecialchars($row['title']) ?></td>
-              <td><?= htmlspecialchars($row['author']) ?></td>
-              <td><?= htmlspecialchars($row['genre']) ?></td>
-              <td>
-                <a href="update_book.php?id=<?= $row['book_id'] ?>" class="btn">Update</a>
-                <a href="delete_book.php?id=<?= $row['book_id'] ?>" class="btn btn-delete" onclick="return confirm('Are you sure you want to delete this book?');">Delete</a>
-              </td>
-            </tr>
-          <?php endwhile; ?>
-        </table>
-      <?php else: ?>
-        <p>No books found in the inventory.</p>
-      <?php endif; ?>
-    </section>
+        <!-- Backup Table View -->
+        <?php if (!empty($chart_labels)): ?>
+            <table class="styled-table">
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Times Borrowed</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php for ($i = 0; $i < count($chart_labels); $i++): ?>
+                        <tr>
+                            <td><?= htmlspecialchars($chart_labels[$i], ENT_QUOTES, 'UTF-8') ?></td>
+                            <td><?= htmlspecialchars($chart_data[$i], ENT_QUOTES, 'UTF-8') ?></td>
+                        </tr>
+                    <?php endfor; ?>
+                </tbody>
+            </table>
+        <?php else: ?>
+            <p>No data available.</p>
+        <?php endif; ?>
 
-    <section>
-      <h2>Add New Book</h2>
-      <form method="post" action="add_book.php">
-        <input type="text" name="title" placeholder="Title" required>
-        <input type="text" name="author" placeholder="Author" required>
-        <input type="text" name="genre" placeholder="Genre" required>
-        <input type="submit" value="Add Book">
-      </form>
-    </section>
+        <!-- Overdue Books Report -->
+        <h2>Overdue Books</h2>
+        <?php if ($overdue_result && $overdue_result->num_rows > 0): ?>
+            <table class="styled-table">
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Title</th>
+                        <th>Due Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php while ($row = $overdue_result->fetch_assoc()): ?>
+                        <tr>
+                            <td><?= htmlspecialchars($row['username'], ENT_QUOTES, 'UTF-8') ?></td>
+                            <td><?= htmlspecialchars($row['title'], ENT_QUOTES, 'UTF-8') ?></td>
+                            <td><?= htmlspecialchars($row['due_date'], ENT_QUOTES, 'UTF-8') ?></td>
+                        </tr>
+                    <?php endwhile; ?>
+                </tbody>
+            </table>
+        <?php else: ?>
+            <p>No overdue books at this time.</p>
+        <?php endif; ?>
+    </div>
 
-    <section>
-      <h2>Send Notification to User</h2>
-      <form method="post">
-        <input type="number" name="user_id" placeholder="User ID" required>
-        <textarea name="message" rows="4" placeholder="Enter message here..." required></textarea>
-        <input type="submit" name="send_notification" value="Send Notification">
-      </form>
-
-      <?php
-      if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_notification'])) {
-          $user_id = intval($_POST['user_id']);
-          $message = trim($_POST['message']);
-
-          $stmt = $conn->prepare("INSERT INTO notifications (user_id, message, status) VALUES (?, ?, 'unread')");
-          if ($stmt) {
-              $stmt->bind_param("is", $user_id, $message);
-              if ($stmt->execute()) {
-                  echo "<p>Notification sent successfully to User ID: $user_id.</p>";
-                  logAction('send_notification', [
-                      'admin_id'       => $_SESSION['admin_id'],
-                      'target_user_id' => $user_id,
-                      'message'        => $message
-                  ]);
-              } else {
-                  echo "<p>Error sending notification: " . $stmt->error . "</p>";
-              }
-              $stmt->close();
-          } else {
-              echo "<p>Error preparing statement: " . $conn->error . "</p>";
-          }
-      }
-
-      $conn->close();
-      ?>
-    </section>
-  </div>
+    <!-- Chart JS Script -->
+    <script>
+        const ctx = document.getElementById('borrowedBooksChart').getContext('2d');
+        const borrowedBooksChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: <?= json_encode($chart_labels) ?>,
+                datasets: [{
+                    label: 'Times Borrowed',
+                    data: <?= json_encode($chart_data) ?>,
+                    backgroundColor: 'rgba(54, 162, 235, 0.7)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1,
+                    borderRadius: 5,
+                }]
+            },
+            options: {
+                plugins: {
+                    legend: {
+                        labels: {
+                            color: '#d4d4d4'
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            color: '#d4d4d4'
+                        },
+                        grid: {
+                            color: '#444'
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            color: '#d4d4d4'
+                        },
+                        grid: {
+                            color: '#444'
+                        }
+                    }
+                }
+            }
+        });
+    </script>
 
 </body>
 </html>
+
+<?php
+} else {
+    echo "<p class='error-text'>Access denied. Admins only.</p>";
+}
+$conn->close();
+?>
 

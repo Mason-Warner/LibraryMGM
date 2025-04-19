@@ -44,12 +44,11 @@ if (isset($_SESSION['admin_id'])) {
             background-color: #1e1e1e;
             color: #d4d4d4;
             line-height: 1.6;
-/*            padding: 20px;
         }
 
         /* Container */
         .container {
-            max-width: 900px;
+            max-width: 1100px;
             margin: 40px auto;
             background-color: #252526;
             padding: 30px;
@@ -139,6 +138,24 @@ if (isset($_SESSION['admin_id'])) {
     <div class="container">
         <h1>Manage Users</h1>
 
+	<?php if (isset($_GET['success']) && $_GET['success'] === 'user_deleted'): ?>
+    	<p style="color: lightblue; background-color: #2a2a2a; padding: 10px 15px; border-radius: 6px; margin-top: 1rem;">
+        ✅ User deleted successfully!
+    	</p>
+	<?php endif; ?>
+
+	<?php if (isset($_GET['success']) && $_GET['success'] === 'user_updated'): ?>
+    	<p style="color: lightgreen; background-color: #2a2a2a; padding: 10px 15px; border-radius: 6px; margin-top: 1rem;">
+        ✅ User updated successfully!
+    	</p>
+	<?php endif; ?>
+
+	<?php if (isset($_GET['success']) && $_GET['success'] === 'notification_sent'): ?>
+    	<p style="color: skyblue; background-color: #2a2a2a; padding: 10px 15px; border-radius: 6px; margin-top: 1rem;">
+        ✅ Notification sent successfully!
+    	</p>
+	<?php endif; ?>
+
         <?php
         $sql = "SELECT * FROM users";
         $result = $conn->query($sql);
@@ -172,6 +189,7 @@ if (isset($_SESSION['admin_id'])) {
                         <td>
                             <a href="update_user.php?id=<?= $userId ?>" class="btn">Update</a>
                             <a href="delete_user.php?id=<?= $userId ?>" onclick="return confirm('Are you sure you want to delete this user?');" class="btn btn-delete">Delete</a>
+                            <a href="send_notification.php?user_id=<?= $userId ?>" class="btn">Send Notification</a> <!-- New button -->
                         </td>
                     </tr>
                 <?php endwhile; ?>
